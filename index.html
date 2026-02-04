@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gulayan sa Paaralan 2026 — Interactive (Animated Background)</title>
+  <style>
+    :root{
+      --accent:#2e7d32;
+      --accent-2:#f9a825;
+      --bg:#f6fbf6;
+      --muted:#5b6b57;
+      --card:#ffffffdd;
+      --maxwidth:1200px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#222;overflow-x:hidden}
+    a{color:var(--accent)}
+
+    /* ----- Background layers (full-bleed, behind content) ----- */
+    .scene-bg {
+      position:fixed;
+      inset:0;
+      z-index:0;
+      pointer-events:none;
+      overflow:hidden;
+      background: linear-gradient(180deg, rgba(240,250,244,1) 0%, rgba(235,245,238,1) 60%, rgba(220,235,225,1) 100%);
+    }
+
+    /* blurred school silhouette */
+    .school-silhouette {
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:8%;
+      width:1400px;
+      max-width:220vw;
+      opacity:0.12;
+      filter: blur(18px) saturate(110%);
+      will-change: transform;
+      animation: silhouetteDrift 18s ease-in-out infinite alternate;
+    }
+    @keyframes silhouetteDrift {
+      from { transform:translateX(-50%) translateY(0); }
+      to   { transform:translateX(-50%) translateY(-12px); }
+    }
+
+    /* canvas layer for particles (sunlight, leaves, insects) */
+    #bgCanvas {
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:1;
+    }
+
+    /* vines drawn via inline SVG to grow along edges */
+    .vines {
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
+      opacity:0.9;
+      mix-blend-mode:normal;
+    }
+    .vine path { stroke: rgba(46,125,50,0.9); stroke-width:2.6; fill:none; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.05)); }
+    .vine .grow { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: growVine 8s ease forwards 1s; }
+    .vine .leaf { fill: rgba(160,216,155,0.85); transform-origin: center; animation: leafPop 1s ease 4s both; }
+
+    @keyframes growVine {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes leafPop {
+      from { transform: scale(0.01) translateY(6px); opacity:0 }
+      to { transform: scale(1) translateY(0); opacity:1 }
+    }
+
+    /* subtle sway for SVG vegetable plants and other small elements */
+    .sway {
+      transform-origin: center bottom;
+      animation: sway 4.6s ease-in-out infinite;
+      will-change: transform;
+    }
+    .sway-slow { animation-duration:6.8s; }
+    .sway-small { animation-duration:3.2s; transform-origin:center center; }
+    @keyframes sway {
+      0% { transform: rotate(-1.6deg) translateY(0); }
+      50% { transform: rotate(1.6deg) translateY(-3px); }
+      100% { transform: rotate(-1.6deg) translateY(0); }
+    }
+
+    /* ---- Page content (above background) ---- */
+    .page {
+      position:relative;
+      z-index:3; /* content above background */
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .site-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.82));border-bottom:3px solid rgba(46,125,50,0.08);box-shadow:0 6px 24px rgba(34,60,22,0.03)}
+    .branding .logo{font-weight:800;font-size:20px;color:var(--accent)}
+    .branding .tag{font-size:12px;color:var(--muted)}
+    .layout{display:grid; grid-template-columns:220px 1fr 320px; gap:20px; max-width:var(--maxwidth); margin:20px auto; padding:0 16px; width:100%}
+    .sidebar{background:var(--card); padding:14px; border-radius:12px; box-shadow:0 6px 18px rgba(29,80,39,0.04)}
+    .top-nav a{margin:0 8px; text-decoration:none; color:var(--muted)}
+    .header-tools{display:flex; gap:8px; align-items:center}
+    .header-tools input{padding:6px 8px; border-radius:8px; border:1px solid #e3e7e1; background:rgba(255,255,255,0.7)}
+
+    /* Hero with subtle foreground plants (SVG shapes) */
+    .hero {
+      height:420px;
+      border-radius:14px;
+      overflow:visible;
+      position:relative;
+      box-shadow:0 16px 48px rgba(28,60,28,0.07);
+      margin-bottom:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(245,253,245,0.6));
+      display:flex;
+      align-items:flex-end;
+      padding:28px;
+    }
+    .hero-content { position:relative; z-index:4; color:#11381a; max-width:55%; }
+    .hero h1{font-size:34px;margin:0 0 8px 0}
+    .hero p{margin:0 0 14px 0;color:var(--muted)}
+    .hero-actions button, .btn-ghost{background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; margin-right:8px}
+    .btn-ghost{background:transparent; border:1px solid rgba(46,125,50,0.14); color:var(--accent)}
+
+    /* plant illustrations at hero bottom (decorative) */
+    .hero-plants { position:absolute; right:32px; bottom:0; z-index:3; display:flex; gap:16px; align-items:flex-end; pointer-events:none; }
+    .plant { width:120px; height:120px; display:block; }
+
+    /* cards, notepad, etc. — softer look */
+    .card, .featured, .notepad, .right-col .events, .right-col .planner {
+      background:var(--card);
+      padding:14px;
+      border-radius:12px;
+      box-shadow:0 6px 18px rgba(34,60,28,0.04);
+    }
+    .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .card { display:flex; gap:12px; align-items:flex-start }
+    .thumb{width:120px;height:80px;border-radius:10px;background:linear-gradient(90deg,#dff0da,#bfe6b6);display:flex;align-items:center;justify-content:center;color:#114d1a;font-weight:700}
+    .thumb-img{width:120px;height:80px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,0,0,0.04)}
+
+    /* modal remains above everything */
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(4,8,4,0.34); z-index:50}
+    .modal[aria-hidden="false"]{display:flex}
+    .modal-content{background:#fff;padding:18px;border-radius:12px; width:min(820px,94%); max-height:86vh; overflow:auto; box-shadow:0 20px 60px rgba(20,60,20,0.16)}
+    .modal .close{position:absolute; right:16px; top:12px; background:transparent; border:none; font-size:20px; cursor:pointer}
+
+    .notepad .editor{min-height:180px; background:#fff; border-radius:10px; padding:12px; font-family:ui-monospace,Menlo,monospace; font-size:13px; color:#111; white-space:pre-wrap; outline:none; border:1px solid #e9efe6; margin-top:8px}
+    .editor.dark{background:#022;color:#cfe8cf}
+
+    .site-footer{max-width:var(--maxwidth); margin:26px auto; padding:12px; color:var(--muted); font-size:14px; text-align:center;}
+
+    /* responsive */
+    @media (max-width:980px){
+      .layout{grid-template-columns:1fr; padding:0 12px;}
+      .hero { height:360px; }
+      .hero-content { max-width:100%; }
+      .hero-plants { display:none; }
+      .cards{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated background scene (layers) -->
+  <div class="scene-bg" aria-hidden="true">
+    <!-- blurred Philippine school silhouette (inline SVG) -->
+    <svg class="school-silhouette" viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax meet" role="img" aria-hidden="true">
+      <defs>
+        <linearGradient id="skyGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="1" stop-color="#eaf6ec" stop-opacity="0.95"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="1600" height="420" fill="url(#skyGrad)"></rect>
+      <!-- simplified silhouette of a school building -->
+      <g transform="translate(120,40)" fill="#2b5a2b">
+        <rect x="60" y="120" width="420" height="110" rx="10" fill="#2b5a2b" opacity="0.95"></rect>
+        <rect x="150" y="60" width="220" height="70" rx="8" fill="#2b5a2b" opacity="0.95"></rect>
+        <rect x="520" y="100" width="360" height="120" rx="10" fill="#2b5a2b" opacity="0.95"></rect>
+        <polygon points="20,120 140,40 260,120" fill="#2b5a2b" opacity="0.95"></polygon>
+        <rect x="920" y="110" width="250" height="100" rx="8" fill="#2b5a2b" opacity="0.95"></rect>
+      </g>
+    </svg>
+
+    <!-- canvas for leaves, sunlight particles, insects -->
+    <canvas id="bgCanvas" width="1600" height="900"></canvas>
+
+    <!-- vines on edges (SVG) that "grow" -->
+    <svg class="vines" viewBox="0 0 1600 900" preserveAspectRatio="none">
+      <!-- left vine -->
+      <g class="vine" transform="translate(12,40)">
+        <path class="grow" d="M10,840 C40,680 30,500 80,420 C140,320 120,200 40,120" stroke-linecap="round" />
+        <g transform="translate(-6,0)">
+          <ellipse class="leaf" cx="38" cy="730" rx="8" ry="5"></ellipse>
+          <ellipse class="leaf" cx="20" cy="600" rx="10" ry="6"></ellipse>
+          <ellipse class="leaf" cx="62" cy="460" rx="8" ry="5"></ellipse>
+        </g>
+      </g>
+
+      <!-- right vine -->
+      <g class="vine" transform="translate(1580,40) scale(-1,1)">
+        <path class="grow" d="M10,820 C40,680 30,520 80,440 C140,340 120,220 40,120" />
+        <g transform="translate(-6,0)">
+          <ellipse class="leaf" cx="38" cy="740" rx="8" ry="5"></ellipse>
+          <ellipse class="leaf" cx="30" cy="600" rx="11" ry="6"></ellipse>
+          <ellipse class="leaf" cx="58" cy="480" rx="9" ry="5"></ellipse>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Page content -->
+  <div class="page">
+    <header class="site-header" role="banner">
+      <div class="branding">
+        <div class="logo">Gulayan <span style="color:var(--accent)">2026</span></div>
+        <div class="tag">School Garden • Sustainability • Food Security</div>
+      </div>
+
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#resources">Resources</a>
+        <a href="#activities">Activities</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="header-tools" aria-hidden="false">
+        <input id="search" placeholder="Search plants, lessons, tools..." aria-label="Search" />
+        <button id="searchBtn">Search</button>
+      </div>
+    </header>
+
+    <main class="layout" role="main">
+      <aside class="sidebar" aria-label="Sidebar">
+        <h3>Garden Resources</h3>
+        <ul>
+          <li><button class="navcat" data-target="guide-pechay">Pechay Guide</button></li>
+          <li><button class="navcat" data-target="guide-tomato">Tomato Guide</button></li>
+          <li><button class="navcat" data-target="guide-eggplant">Eggplant Guide</button></li>
+          <li><button class="navcat" data-target="guide-okra">Okra Guide</button></li>
+          <li><button class="navcat" data-target="lesson-plans">Lesson Plans</button></li>
+          <li><button class="navcat" data-target="sustainability">Sustainability Tips</button></li>
+        </ul>
+      </aside>
+
+      <section class="main-content" id="home" style="position:relative; z-index:3">
+        <section class="hero" role="img" aria-label="Students and teachers working together in lush school garden">
+          <div class="hero-content">
+            <h1>Gulayan sa Paaralan 2026</h1>
+            <p>Students, teachers, and the community growing food, knowledge, and hope.</p>
+            <div class="hero-actions">
+              <button id="openPlanner">Open Garden Planner</button>
+              <a href="#activities" class="btn-ghost">See Activities</a>
+            </div>
+          </div>
+
+          <!-- decorative minimal plant illustrations (SVG) with subtle sway -->
+          <div class="hero-plants" aria-hidden="true">
+            <svg class="plant sway sway-small" viewBox="0 0 80 120" width="90" height="120" role="presentation">
+              <!-- pechay-ish leaves -->
+              <g transform="translate(10,8)" fill="#a7db9a" stroke="#3c7d3b" stroke-width="1">
+                <ellipse cx="28" cy="78" rx="18" ry="10" />
+                <ellipse cx="28" cy="58" rx="22" ry="11" />
+                <ellipse cx="28" cy="38" rx="20" ry="10" />
+                <rect x="22" y="6" width="12" height="70" rx="6" fill="#6aa84a" />
+              </g>
+            </svg>
+
+            <svg class="plant sway-slow" viewBox="0 0 84 120" width="100" height="120" role="presentation">
+              <!-- tomato stem with small round fruit -->
+              <g transform="translate(10,6)">
+                <rect x="36" y="10" width="6" height="80" rx="3" fill="#6a8e4b" />
+                <circle cx="32" cy="62" r="8" fill="#e86f59" />
+                <circle cx="46" cy="72" r="6" fill="#e86f59" />
+                <circle cx="28" cy="80" r="5" fill="#e86f59" />
+              </g>
+            </svg>
+
+            <svg class="plant sway" viewBox="0 0 80 120" width="90" height="120" role="presentation">
+              <!-- lettuce-ish cluster -->
+              <g transform="translate(8,10)" fill="#bfe6b9" stroke="#2f7a3a" stroke-width="0.8">
+                <ellipse cx="36" cy="88" rx="26" ry="14" />
+                <ellipse cx="36" cy="70" rx="28" ry="16" />
+                <ellipse cx="36" cy="54" rx="22" ry="12" />
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <!-- Featured Activities -->
+        <section class="featured" id="activities" aria-labelledby="activitiesTitle">
+          <h2 id="activitiesTitle">Featured Activities</h2>
+          <div class="cards">
+            <article class="card">
+              <img src="files/pechay.jpg" alt="Pechay" class="thumb-img" />
+              <div style="flex:1">
+                <h3>Pechay Planting Workshop</h3>
+                <p>Plant small beds of pechay with students — quick harvest and high nutrition.</p>
+              </div>
+              <button class="more" data-plant="pechay">More Info</button>
+            </article>
+
+            <article class="card">
+              <img src="files/tomato.jpg" alt="Tomato" class="thumb-img" />
+              <div style="flex:1">
+                <h3>Tomato Trellis & Care</h3>
+                <p>Training on staking, pruning, and disease prevention for tomatoes.</p>
+              </div>
+              <button class="more" data-plant="tomato">More Info</button>
+            </article>
+
+            <article class="card">
+              <img src="files/eggplant.jpg" alt="Eggplant" class="thumb-img" />
+              <div style="flex:1">
+                <h3>Eggplant Raised Bed Session</h3>
+                <p>Build raised beds using recycled containers and compost for eggplant.</p>
+              </div>
+              <button class="more" data-plant="eggplant">More Info</button>
+            </article>
+
+            <article class="card">
+              <img src="files/okra.jpg" alt="Okra" class="thumb-img" />
+              <div style="flex:1">
+                <h3>Okra & Pollinators</h3>
+                <p>Learn how to attract pollinators and harvest okra sustainably.</p>
+              </div>
+              <button class="more" data-plant="okra">More Info</button>
+            </article>
+          </div>
+        </section>
+
+        <!-- Notepad-like editor -->
+        <section class="notepad" id="notepad" style="margin-top:14px">
+          <h2>Garden Notes (Notepad-style)</h2>
+          <div class="notepad-toolbar" style="display:flex;gap:8px;align-items:center">
+            <button id="saveNote">Download .txt</button>
+            <button id="loadSample">Load Sample</button>
+            <button id="clearNote">Clear</button>
+            <label style="margin-left:8px">
+              Theme:
+              <select id="editorTheme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+          </div>
+          <div id="editor" class="editor" contenteditable="true" aria-label="Garden notes editor" spellcheck="false">
+# Gulayan sa Paaralan 2026 Notes
+
+- Bed A: pechay (planting: Jan-Mar)
+- Compost: 2x per month
+- Next workshop: seed saving (May)
+          </div>
+        </section>
+      </section>
+
+      <aside class="right-col" aria-label="Right column" style="position:relative">
+        <section class="events">
+          <h3>Upcoming Events</h3>
+          <ul>
+            <li><strong>Seed Distribution</strong> — 2026-03-12</li>
+            <li><strong>Compost Workshop</strong> — 2026-04-02</li>
+            <li><strong>Inter-school Garden Fair</strong> — 2026-07-18</li>
+          </ul>
+        </section>
+
+        <section class="planner" style="margin-top:12px">
+          <h3>Interactive Garden Planner</h3>
+          <p>Click the raised beds to view what's planted.</p>
+          <div class="garden-map" id="gardenMap" style="background:linear-gradient(180deg,#f7fff7,#eefaf0);padding:10px;border-radius:10px">
+            <svg viewBox="0 0 600 400" role="img" aria-label="Garden layout" class="garden-svg" preserveAspectRatio="xMidYMid meet">
+              <rect id="bed1" x="40" y="40" width="200" height="120" class="bed" data-crop="pechay" fill="#dff3db" stroke="#2e7d32" stroke-width="3"></rect>
+              <rect id="bed2" x="280" y="40" width="260" height="120" class="bed" data-crop="tomato" fill="#fcefe8" stroke="#b85a4a" stroke-width="3"></rect>
+              <rect id="bed3" x="40" y="200" width="200" height="160" class="bed" data-crop="eggplant" fill="#efe7ff" stroke="#6b4a8a" stroke-width="3"></rect>
+              <rect id="bed4" x="280" y="200" width="260" height="160" class="bed" data-crop="okra" fill="#f7f9e9" stroke="#879b3a" stroke-width="3"></rect>
+              <text x="140" y="110" class="bed-label" style="font-size:14px;fill:#2f5a2f;text-anchor:middle">Bed A</text>
+              <text x="410" y="110" class="bed-label" style="font-size:14px;fill:#6b3a36;text-anchor:middle">Bed B</text>
+              <text x="140" y="300" class="bed-label" style="font-size:14px;fill:#4a3670;text-anchor:middle">Bed C</text>
+              <text x="410" y="300" class="bed-label" style="font-size:14px;fill:#516826;text-anchor:middle">Bed D</text>
+            </svg>
+          </div>
+
+          <div class="calendar" id="plantCalendar" style="margin-top:10px">
+            <h4>Planting Calendar</h4>
+            <div class="months" id="months" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" role="dialog" aria-hidden="true">
+      <div class="modal-content" role="document">
+        <button class="close" id="modalClose" aria-label="Close">×</button>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <footer class="site-footer" id="contact">
+      <div>Gulayan sa Paaralan — 2026 • A community initiative</div>
+      <div style="margin-top:6px">Contact: school@gulayan.edu.ph • 800-888-8888</div>
+    </footer>
+  </div>
+
+  <script>
+    /************************************************************************
+     * Background animation system
+     ************************************************************************/
+    (function(){
+      const canvas = document.getElementById('bgCanvas');
+      const ctx = canvas.getContext('2d', { alpha: true });
+      let w = 0, h = 0, DPR = Math.max(1, window.devicePixelRatio || 1);
+
+      function resize() {
+        w = canvas.clientWidth || window.innerWidth;
+        h = canvas.clientHeight || window.innerHeight;
+        canvas.width = Math.floor(w * DPR);
+        canvas.height = Math.floor(h * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      function rand(min, max){ return Math.random() * (max - min) + min; }
+      function choose(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+      const suns = [];
+      for (let i=0;i<28;i++){
+        suns.push({ x: rand(0,w), y: rand(h*0.05, h*0.8), r: rand(0.6, 2.6), alpha: rand(0.06, 0.22), speed: rand(0.01, 0.06), sway: rand(6, 22), phase: Math.random()*Math.PI*2 });
+      }
+
+      const leaves = [];
+      const leafShapes = ['#9bd08b','#7fc97a','#6fbf6a','#c9e6c4'];
+      for (let i=0;i<18;i++){
+        leaves.push({ x: rand(-0.2*w, w*1.2), y: rand(-h*0.2, h*1.1), vx: rand(-0.05, 0.05), vy: rand(0.08, 0.6), rot: rand(0, Math.PI*2), vrot: rand(-0.03,0.03), size: rand(8, 40), color: choose(leafShapes), swayAmp: rand(12, 48), swayPhase: Math.random()*Math.PI*2 });
+      }
+
+      const insects = [];
+      for (let i=0;i<7;i++){
+        insects.push({ kind: i < 4 ? 'butterfly' : 'bee', x: rand(0, w), y: rand(h*0.12, h*0.65), t: Math.random()*1000, speed: rand(0.3, 1.0), size: (i<4 ? rand(8,14) : rand(6,10)), color: i<4 ? ['#ffd1dc','#ffc36b','#ffd88a'][Math.floor(Math.random()*3)] : '#e6c34d', wobble: rand(6,20) });
+      }
+
+      let last = performance.now();
+      let running = true;
+      document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { last = performance.now(); requestAnimationFrame(loop); } });
+
+      function drawLeafShape(ctx, size, color){ ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, -size*0.2); ctx.bezierCurveTo(size*0.6, -size*0.6, size*0.8, size*0.2, 0, size*0.9); ctx.bezierCurveTo(-size*0.8, size*0.2, -size*0.6, -size*0.6, 0, -size*0.2); ctx.fill(); ctx.restore(); }
+      function drawButterfly(ctx, size, color, wingPhase){ ctx.save(); ctx.translate(0,0); ctx.fillStyle = '#2c2c2c'; ctx.fillRect(-size*0.07, -size*0.2, size*0.14, size*0.6); ctx.fillStyle = color; const flap = 1 + 0.35 * Math.sin(wingPhase*2.4); ctx.beginPath(); ctx.ellipse(-size*0.25, 0, size*0.48*flap, size*0.26*flap, 0, 0, 2*Math.PI); ctx.fill(); ctx.beginPath(); ctx.ellipse(size*0.25, 0, size*0.48*flap, size*0.26*flap, 0, 0, 2*Math.PI); ctx.fill(); ctx.restore(); }
+      function drawBee(ctx, size){ ctx.save(); ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.ellipse(0, 0, size*0.6, size*0.4, 0, 0, 2*Math.PI); ctx.fill(); ctx.fillStyle = '#2b2b2b'; ctx.fillRect(-size*0.15, -size*0.2, size*0.15, size*0.4); ctx.fillRect(size*0.02, -size*0.2, size*0.12, size*0.4); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.ellipse(-size*0.28, -size*0.28, size*0.32, size*0.18, -0.4, 0, 2*Math.PI); ctx.fill(); ctx.beginPath(); ctx.ellipse(size*0.28, -size*0.28, size*0.32, size*0.18, 0.4, 0, 2*Math.PI); ctx.fill(); ctx.restore(); }
+
+      function loop(now){ if (!running) return; const dt = Math.min(40, now - last) / 1000; last = now; ctx.clearRect(0,0,w,h);
+        const grad = ctx.createRadialGradient(w*0.15, h*0.08, 80, w*0.15, h*0.08, Math.max(w,h)); grad.addColorStop(0, 'rgba(255,245,220,0.12)'); grad.addColorStop(0.5, 'rgba(255,245,220,0.03)'); grad.addColorStop(1, 'rgba(255,245,220,0)'); ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+        for (let s of suns){ s.y -= s.speed * 8 * dt; s.x += Math.sin((now*0.00012) + s.phase) * 0.2 * s.sway * dt; s.phase += 0.002 * dt; if (s.y < -40) { s.y = h + 20; s.x = rand(0,w); } ctx.beginPath(); const r = s.r; const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r*18); g.addColorStop(0, `rgba(255,245,200,${s.alpha})`); g.addColorStop(1, `rgba(255,245,200,0)`); ctx.fillStyle = g; ctx.fillRect(s.x - r*10, s.y - r*10, r*20, r*20); }
+        for (let lf of leaves){ lf.x += lf.vx * 60 * dt + Math.sin((now*0.0008)+lf.swayPhase) * (lf.swayAmp*0.02) * dt; lf.y += lf.vy * 60 * dt; lf.rot += lf.vrot * 60 * dt; lf.swayPhase += 0.01 * dt; if (lf.y > h + 40 || lf.x < -200 || lf.x > w + 200){ lf.x = rand(-0.2*w, w*1.2); lf.y = rand(-h*0.3, -10); lf.vx = rand(-0.05,0.05); lf.vy = rand(0.08, 0.6); lf.size = rand(8,40); } ctx.save(); ctx.translate(lf.x, lf.y); ctx.rotate(lf.rot + Math.sin(now*0.001 + lf.swayPhase)*0.18); ctx.globalAlpha = 0.95; drawLeafShape(ctx, lf.size, lf.color); ctx.restore(); }
+        for (let ins of insects){ ins.t += ins.speed * dt * 30; ins.x += (ins.kind === 'butterfly' ? 0.6 : 1.0) * ins.speed * 18 * dt; ins.y += Math.sin((ins.t + ins.wobble) * 0.18) * (ins.kind === 'butterfly' ? 0.9 : 0.6); if (ins.x > w + 40) { ins.x = -40; ins.y = rand(h*0.1, h*0.75); ins.t = Math.random()*1000; } if (ins.x < -60) { ins.x = w + 40; } ctx.save(); ctx.translate(ins.x, ins.y); const phase = ins.t * 4; ctx.globalAlpha = 0.95; if (ins.kind === 'butterfly') { drawButterfly(ctx, ins.size, ins.color, phase); } else { drawBee(ctx, ins.size); } ctx.restore(); }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    })();
+
+    /************************************************************************
+     * Page interactivity
+     ************************************************************************/
+    (function(){
+      const modal = document.getElementById('modal');
+      const modalBody = document.getElementById('modalBody');
+      const modalClose = document.getElementById('modalClose');
+      function openModal(html){ modalBody.innerHTML = html; modal.setAttribute('aria-hidden','false'); modalClose.focus(); }
+      function closeModal(){ modal.setAttribute('aria-hidden','true'); modalBody.innerHTML = ''; }
+      modalClose.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e)=> { if (e.target === modal) closeModal(); });
+      document.addEventListener('keydown', (e)=> { if (e.key === 'Escape') closeModal(); });
+
+      const plantData = {
+        pechay: {
+          title: 'Pechay (Brassica rapa)',
+          img: 'files/pechay.jpg',
+          content: '<p>Pechay is fast-growing and ideal for school gardens. Sow seeds in rows, keep moist. Harvest leaves 30–45 days.</p><ul><li>Planting months: Jan–Mar, Aug–Oct</li><li>Spacing: 15cm</li><li>Sustainability tip: use compost tea</li></ul>'
+        },
+        tomato: {
+          title: 'Tomato (Solanum lycopersicum)',
+          img: 'files/tomato.jpg',
+          content: '<p>Use stakes or trellises. Prune lower leaves and avoid overhead watering to reduce disease.</p><ul><li>Planting months: Nov–Feb</li><li>Support with trellis</li></ul>'
+        },
+        eggplant: {
+          title: 'Eggplant (Solanum melongena)',
+          img: 'files/eggplant.jpg',
+          content: '<p>Raised beds and good compost are ideal. Mulch to conserve moisture and reduce weeds.</p>'
+        },
+        okra: {
+          title: 'Okra (Abelmoschus esculentus)',
+          img: 'files/okra.jpg',
+          content: '<p>Okra grows well in warm seasons; support pollinators with flowering borders and harvest pods regularly.</p>'
+        }
+      };
+
+      document.querySelectorAll('.more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const plant = e.currentTarget.dataset.plant;
+          const data = plantData[plant] || { title: 'Info', content: '<p>Coming soon.</p>' };
+          openModal('<h2>' + data.title + '</h2>' + (data.img ? ('<img src="'+data.img+'" alt="'+data.title+'" style="max-width:100%;border-radius:8px;margin-top:8px"/>') : '') + data.content + '<p style="margin-top:10px"><strong>Community tip:</strong> involve students in composting and seed saving.</p>');
+        });
+      });
+
+      document.querySelectorAll('.navcat').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const key = e.currentTarget.dataset.target.replace('guide-','');
+          if (plantData[key]) {
+            const d = plantData[key];
+            openModal('<h2>' + d.title + '</h2>' + (d.img ? ('<img src="'+d.img+'" alt="'+d.title+'" style="max-width:100%;border-radius:8px;margin-top:8px"/>') : '') + d.content);
+          } else {
+            openModal('<h2>' + e.currentTarget.textContent + '</h2><p>Lesson plans and resources will go here.</p>');
+          }
+        });
+      });
+
+      document.querySelectorAll('.bed').forEach(rect => {
+        rect.addEventListener('click', (e) => {
+          const crop = rect.dataset.crop;
+          if (plantData[crop]) {
+            const d = plantData[crop];
+            openModal('<h2>' + d.title + ' — Bed Details</h2>' + (d.img ? ('<img src="'+d.img+'" alt="'+d.title+'" style="max-width:100%;border-radius:8px;margin-top:8px"/>') : '') + d.content + '<p style="margin-top:6px"><strong>Bed Notes:</strong> rotate crops yearly and refresh with compost.</p>');
+          } else {
+            openModal('<p>No crop info available.</p>');
+          }
+        });
+      });
+
+      const monthsContainer = document.getElementById('months');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      months.forEach((m,i) => {
+        const btn = document.createElement('button');
+        btn.textContent = m; btn.dataset.month = i+1;
+        btn.addEventListener('click', () => {
+          btn.classList.toggle('active');
+          if (btn.classList.contains('active')) openModal('<h3>Month: ' + m + '</h3><p>Activities: sowing, bed prep, watering schedules, student workshops.</p>'); else closeModal();
+        });
+        monthsContainer.appendChild(btn);
+      });
+
+      const editor = document.getElementById('editor');
+      const saveNote = document.getElementById('saveNote');
+      const clearNote = document.getElementById('clearNote');
+      const loadSample = document.getElementById('loadSample');
+      const editorTheme = document.getElementById('editorTheme');
+
+      function downloadText(filename, text) { const blob = new Blob([text], {type: "text/plain;charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+      saveNote.addEventListener('click', () => downloadText('gulayan-notes.txt', editor.innerText));
+      clearNote.addEventListener('click', () => { if (confirm('Clear all notes?')) editor.innerText = ''; });
+      loadSample.addEventListener('click', () => editor.innerText = "# Sample Workshop Notes\n- Date: 2026-03-12\n- Activity: seed distribution\n- Volunteers: 12\n");
+
+      editorTheme.addEventListener('change', (e) => { if (e.target.value === 'dark') editor.classList.add('dark'); else editor.classList.remove('dark'); });
+
+      document.getElementById('openPlanner').addEventListener('click', () => { openModal('<h2>Garden Planner</h2><p>Click a bed in the planner to view details and plan crop rotations. Use the notes to record tasks and download a .txt to share with teachers and volunteers.</p>'); });
+
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        const q = (document.getElementById('search').value || '').trim().toLowerCase();
+        if (!q) { openModal('<p>Type a search term for plants, lessons, or tools.</p>'); return; }
+        const found = Object.keys(plantData).find(k => k.includes(q) || plantData[k].title.toLowerCase().includes(q));
+        if (found) { const d = plantData[found]; openModal('<h2>Search result</h2><h3>' + d.title + '</h3>' + (d.img ? ('<img src="'+d.img+'" alt="'+d.title+'" style="max-width:100%;border-radius:8px;margin-top:8px"/>') : '') + d.content); }
+        else openModal('<h2>No results</h2><p>No resources found for "' + q + '". Try "pechay", "tomato", "eggplant", or "okra".</p>');
+      });
+    })();
+  </script>
+</body>
+</html>
